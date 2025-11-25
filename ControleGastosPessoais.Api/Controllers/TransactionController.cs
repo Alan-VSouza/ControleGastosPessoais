@@ -9,7 +9,6 @@ using ControleGastosPessoais.Api.Services;
 
 namespace ControleGastosPessoais.Api.Controllers
 {
-    [Authorize] // Rota protegida
     [ApiController]
     [Route("api/[controller]")]
     public class TransactionController : ControllerBase
@@ -23,16 +22,14 @@ namespace ControleGastosPessoais.Api.Controllers
             _logger = logger;
         }
 
+        [Authorize] 
         [HttpPost]
         public async Task<IActionResult> AddTransaction([FromBody] TransactionRequest request)
         {
-            // Tenta obter o ID do usuário dos claims do JWT
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            
+
             if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
             {
-                // Isso não deve acontecer se a autenticação JWT estiver configurada corretamente, 
-                // mas é uma boa prática defensiva.
                 return Unauthorized(new TransactionResponse { Success = false, Message = "Usuário não autenticado ou ID inválido." });
             }
 
@@ -53,6 +50,14 @@ namespace ControleGastosPessoais.Api.Controllers
             }
 
             return Created(nameof(AddTransaction), result.Data);
+        }
+
+        [Authorize] 
+        [HttpGet("saldo/{userId}")]
+        public IActionResult ObterSaldo(int userId)
+        {
+            var saldo = _transactionService.CalcularSaldo(userId);
+            return Ok(saldo);
         }
     }
 }

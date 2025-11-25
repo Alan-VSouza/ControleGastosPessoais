@@ -10,6 +10,8 @@ namespace ControleGastosPessoais.Api.Models
         [Key]
         public int Id { get; set; }
 
+        public decimal Saldo { get; set; }
+
         [Required]
         [EmailAddress]
         [MaxLength(255)]
