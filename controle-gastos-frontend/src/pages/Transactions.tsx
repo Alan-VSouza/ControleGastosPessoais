@@ -1,13 +1,14 @@
 import React from "react";
 import TransactionForm from "../components/TransactionForm";
 
-const userId = 1; 
-
 const TransactionsPage: React.FC = () => {
+  const handleChanged = () => {
+  };
+
   return (
     <div style={{ padding: "20px" }}>
       <h2>Cadastro de Receitas e Despesas</h2>
-      <TransactionForm userId={userId} onTransactionAdded={() => alert("Transação adicionada com sucesso!")} />
+      <TransactionForm onTransactionAdded={handleChanged} />
     </div>
   );
 };
