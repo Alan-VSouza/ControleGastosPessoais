@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import styles from "./Navbar.module.css";
 
-const Navbar = () => {
+const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, user, logout } = useAuth();
 
@@ -22,28 +22,39 @@ const Navbar = () => {
         <h1 className={styles.logo} onClick={() => navigate("/dashboard")}>
           💰 Controle de Gastos
         </h1>
-        
+
         <div className={styles.navLinks}>
           <span className={styles.userGreeting}>Olá, {user?.fullName}!</span>
-          
-          <button 
-            onClick={() => navigate("/dashboard")} 
+
+          <button
+            onClick={() => navigate("/dashboard")}
             className={styles.navButton}
           >
             Dashboard
           </button>
-          
-          <button 
-            onClick={() => navigate("/transactions")} 
+
+          <button
+            onClick={() => navigate("/transactions")}
             className={styles.navButton}
           >
             Transações
           </button>
-          
-          <button 
-            onClick={handleLogout} 
-            className={styles.navButtonLogout}
+
+          <button
+            onClick={() => navigate("/history")}
+            className={styles.navButton}
           >
+            Histórico
+          </button>
+
+          <button
+            onClick={() => navigate("/analytics")}
+            className={styles.navButton}
+          >
+            Análise
+          </button>
+
+          <button onClick={handleLogout} className={styles.navButtonLogout}>
             Logout
           </button>
         </div>

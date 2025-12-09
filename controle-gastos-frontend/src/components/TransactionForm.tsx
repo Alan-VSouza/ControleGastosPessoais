@@ -3,11 +3,12 @@ import axios from "axios";
 import styles from "./TransactionForm.module.css";
 
 interface TransactionFormProps {
-  userId: number;
   onTransactionAdded: () => void;
 }
 
-const TransactionForm: React.FC<TransactionFormProps> = ({ userId, onTransactionAdded }) => {
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5148";
+
+const TransactionForm: React.FC<TransactionFormProps> = ({ onTransactionAdded }) => {
   const [transactionType, setTransactionType] = useState<string>("Income");
   const [description, setDescription] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
@@ -19,23 +20,20 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ userId, onTransaction
   const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState<string>("");
 
-  // URL base da API
-  const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5148";
-
   useEffect(() => {
     fetchSaldo();
-  }, [userId]);
+  }, []);
 
   const fetchSaldo = async () => {
     try {
       const token = localStorage.getItem("auth_token");
-      const response = await axios.get(`${API_BASE_URL}/api/transactions/saldo/${userId}`, {
+      const response = await axios.get(`${API_BASE_URL}/api/transaction/saldo`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
       setSaldo(response.data);
-    } catch (err) {
+    } catch {
       setSaldo(0);
     }
   };
@@ -55,7 +53,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ userId, onTransaction
       };
 
       const token = localStorage.getItem("auth_token");
-      await axios.post(`${API_BASE_URL}/api/transactions`, payload, {
+      await axios.post(`${API_BASE_URL}/api/transaction`, payload, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -64,12 +62,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ userId, onTransaction
       setSuccess("✓ Transação adicionada com sucesso!");
       onTransactionAdded();
 
-      const saldoResp = await axios.get(`${API_BASE_URL}/api/transactions/saldo/${userId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      setSaldo(saldoResp.data);
+      await fetchSaldo();
 
       setDescription("");
       setAmount("");
@@ -85,10 +78,14 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ userId, onTransaction
     }
   };
 
-  const handleTypeChange = (e: ChangeEvent<HTMLSelectElement>) => setTransactionType(e.target.value);
-  const handleDescriptionChange = (e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value);
-  const handleAmountChange = (e: ChangeEvent<HTMLInputElement>) => setAmount(e.target.value);
-  const handleDateChange = (e: ChangeEvent<HTMLInputElement>) => setTransactionDate(e.target.value);
+  const handleTypeChange = (e: ChangeEvent<HTMLSelectElement>) =>
+    setTransactionType(e.target.value);
+  const handleDescriptionChange = (e: ChangeEvent<HTMLInputElement>) =>
+    setDescription(e.target.value);
+  const handleAmountChange = (e: ChangeEvent<HTMLInputElement>) =>
+    setAmount(e.target.value);
+  const handleDateChange = (e: ChangeEvent<HTMLInputElement>) =>
+    setTransactionDate(e.target.value);
 
   const isReceita = transactionType === "Income";
 
@@ -96,7 +93,11 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ userId, onTransaction
     <div className={styles.container}>
       <div className={styles.saldoCard}>
         <div className={styles.saldoLabel}>Saldo Atual</div>
-        <div className={`${styles.saldoAmount} ${isReceita ? styles.positive : styles.negative}`}>
+        <div
+          className={`${styles.saldoAmount} ${
+            isReceita ? styles.positive : styles.negative
+          }`}
+        >
           R$ {saldo.toFixed(2)}
         </div>
       </div>

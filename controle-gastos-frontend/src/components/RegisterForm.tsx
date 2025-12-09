@@ -134,6 +134,7 @@ const RegisterForm: React.FC = () => {
               onChange={handleInputChange}
               className={errors.fullName ? styles.inputError : ""}
               disabled={isLoading}
+              autoComplete="name"
             />
             {errors.fullName && (
               <span className={styles.error}>{errors.fullName}</span>
@@ -152,6 +153,7 @@ const RegisterForm: React.FC = () => {
               onChange={handleInputChange}
               className={errors.email ? styles.inputError : ""}
               disabled={isLoading}
+              autoComplete="off"
             />
             {errors.email && (
               <span className={styles.error}>{errors.email}</span>
@@ -171,6 +173,7 @@ const RegisterForm: React.FC = () => {
                 onChange={handleInputChange}
                 className={errors.password ? styles.inputError : ""}
                 disabled={isLoading}
+                autoComplete="new-password"
               />
               <button
                 type="button"
@@ -198,6 +201,7 @@ const RegisterForm: React.FC = () => {
               onChange={handleInputChange}
               className={errors.confirmPassword ? styles.inputError : ""}
               disabled={isLoading}
+              autoComplete="new-password"
             />
             {errors.confirmPassword && (
               <span className={styles.error}>{errors.confirmPassword}</span>

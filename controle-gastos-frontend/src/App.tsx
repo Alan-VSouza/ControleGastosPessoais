@@ -1,5 +1,10 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import HomePage from "./pages/Home";
@@ -8,6 +13,8 @@ import RegisterPage from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Navbar from "./components/Navbar";
 import TransactionsPage from "./pages/Transactions";
+import HistoryPage from "./pages/History";
+import AnalyticsPage from "./pages/Analytics";
 
 const App: React.FC = () => {
   return (
@@ -33,6 +40,24 @@ const App: React.FC = () => {
             element={
               <ProtectedRoute>
                 <TransactionsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/history"
+            element={
+              <ProtectedRoute>
+                <HistoryPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/analytics"
+            element={
+              <ProtectedRoute>
+                <AnalyticsPage />
               </ProtectedRoute>
             }
           />

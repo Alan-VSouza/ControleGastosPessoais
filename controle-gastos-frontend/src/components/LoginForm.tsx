@@ -76,6 +76,7 @@ const LoginForm: React.FC = () => {
               }}
               className={validationErrors.email ? styles.inputError : ""}
               disabled={isLoading}
+              autoComplete="off"
             />
             {validationErrors.email && (
               <span className={styles.error}>{validationErrors.email}</span>
@@ -96,6 +97,7 @@ const LoginForm: React.FC = () => {
                 }}
                 className={validationErrors.password ? styles.inputError : ""}
                 disabled={isLoading}
+                autoComplete="off"
               />
               <button
                 type="button"
