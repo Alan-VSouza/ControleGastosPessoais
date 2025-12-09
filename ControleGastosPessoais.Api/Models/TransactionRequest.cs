@@ -13,10 +13,10 @@ namespace ControleGastosPessoais.Api.Models
         [Required(ErrorMessage = "O valor é obrigatório.")]
         [Range(0.01, double.MaxValue, ErrorMessage = "O valor deve ser positivo.")]
         public decimal Amount { get; set; }
-
+        
         [Required(ErrorMessage = "O tipo de transação é obrigatório (Income/Expense).")]
-        public string Type { get; set; } = string.Empty; // Usamos string aqui e convertemos no Service
-
+        public string Type { get; set; } = string.Empty; 
+        
         [Required(ErrorMessage = "A data da transação é obrigatória.")]
         public DateTime TransactionDate { get; set; }
     }

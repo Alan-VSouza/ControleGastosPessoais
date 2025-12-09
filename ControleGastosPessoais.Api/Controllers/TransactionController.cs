@@ -1,9 +1,8 @@
-using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using System.Security.Claims;
 using ControleGastosPessoais.Api.Models;
 using ControleGastosPessoais.Api.Services;
 
@@ -11,6 +10,7 @@ namespace ControleGastosPessoais.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class TransactionController : ControllerBase
     {
         private readonly ITransactionService _transactionService;
@@ -22,13 +22,21 @@ namespace ControleGastosPessoais.Api.Controllers
             _logger = logger;
         }
 
-        [Authorize] 
+        private int GetUserIdFromClaims()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+            {
+                return 0;
+            }
+            return userId;
+        }
+
         [HttpPost]
         public async Task<IActionResult> AddTransaction([FromBody] TransactionRequest request)
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+            var userId = GetUserIdFromClaims();
+            if (userId == 0)
             {
                 return Unauthorized(new TransactionResponse { Success = false, Message = "Usuário não autenticado ou ID inválido." });
             }
@@ -52,10 +60,75 @@ namespace ControleGastosPessoais.Api.Controllers
             return Created(nameof(AddTransaction), result.Data);
         }
 
-        [Authorize] 
-        [HttpGet("saldo/{userId}")]
-        public IActionResult ObterSaldo(int userId)
+        [HttpGet]
+        public async Task<IActionResult> GetMyTransactions()
         {
+            var userId = GetUserIdFromClaims();
+            if (userId == 0)
+            {
+                return Unauthorized();
+            }
+
+            var transactions = await _transactionService.GetUserTransactionsAsync(userId);
+            return Ok(transactions);
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(int id, [FromBody] TransactionRequest request)
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == 0)
+            {
+                return Unauthorized(new TransactionResponse { Success = false, Message = "Usuário não autenticado ou ID inválido." });
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new TransactionResponse
+                {
+                    Success = false,
+                    Message = "Dados de entrada inválidos."
+                });
+            }
+
+            var result = await _transactionService.UpdateTransactionAsync(userId, id, request);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == 0)
+            {
+                return Unauthorized(new TransactionResponse { Success = false, Message = "Usuário não autenticado ou ID inválido." });
+            }
+
+            var result = await _transactionService.DeleteTransactionAsync(userId, id);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+
+        [HttpGet("saldo")]
+        public IActionResult ObterSaldo()
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == 0)
+            {
+                return Unauthorized();
+            }
+
             var saldo = _transactionService.CalcularSaldo(userId);
             return Ok(saldo);
         }
