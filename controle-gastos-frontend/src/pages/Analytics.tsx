@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { formatCurrency } from "../utils/format";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5148";
 
@@ -172,7 +173,7 @@ const AnalyticsPage: React.FC = () => {
             RECEITAS
           </p>
           <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#22c55e" }}>
-            R$ {totalIncomes.toFixed(2)}
+            {formatCurrency(totalIncomes)}
           </p>
         </div>
 
@@ -188,7 +189,7 @@ const AnalyticsPage: React.FC = () => {
             DESPESAS
           </p>
           <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#ef4444" }}>
-            R$ {totalExpenses.toFixed(2)}
+            {formatCurrency(totalExpenses)}
           </p>
         </div>
 
@@ -212,7 +213,7 @@ const AnalyticsPage: React.FC = () => {
               color: saldo >= 0 ? "#22c55e" : "#ef4444",
             }}
           >
-            R$ {saldo.toFixed(2)}
+            {formatCurrency(saldo)}
           </p>
         </div>
       </div>
@@ -254,7 +255,7 @@ const AnalyticsPage: React.FC = () => {
             />
             <p style={{ margin: 0, fontSize: 12, color: "#9ca3af" }}>Receitas</p>
             <p style={{ margin: "4px 0 0 0", fontSize: 14, color: "#22c55e", fontWeight: 600 }}>
-              R$ {totalIncomes.toFixed(2)}
+              {formatCurrency(totalIncomes)}
             </p>
           </div>
 
@@ -275,7 +276,7 @@ const AnalyticsPage: React.FC = () => {
             />
             <p style={{ margin: 0, fontSize: 12, color: "#9ca3af" }}>Despesas</p>
             <p style={{ margin: "4px 0 0 0", fontSize: 14, color: "#ef4444", fontWeight: 600 }}>
-              R$ {totalExpenses.toFixed(2)}
+              {formatCurrency(totalExpenses)}
             </p>
           </div>
         </div>
@@ -347,7 +348,7 @@ const AnalyticsPage: React.FC = () => {
                           fontWeight: 600,
                         }}
                       >
-                        {isIncome ? "+ " : "- "}R$ {t.amount.toFixed(2)}
+                        {isIncome ? "+ " : "- "}{formatCurrency(t.amount)}
                       </td>
                     </tr>
                   );

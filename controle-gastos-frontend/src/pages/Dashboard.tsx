@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { formatCurrency } from "../utils/format";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5148";
 
@@ -14,7 +15,7 @@ interface Transaction {
 }
 
 const Dashboard: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [saldo, setSaldo] = useState<number>(0);
@@ -58,11 +59,6 @@ const Dashboard: React.FC = () => {
     loadData();
   }, []);
 
-  const handleLogout = async () => {
-    await logout();
-    navigate("/login");
-  };
-
   const totalIncomes = recentTransactions
     .filter((t) => t.type === 0)
     .reduce((sum, t) => sum + t.amount, 0);
@@ -80,37 +76,12 @@ const Dashboard: React.FC = () => {
         color: "#e5e7eb",
       }}
     >
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 24,
-        }}
-      >
-        <div>
-          <h1 style={{ margin: 0, fontSize: 26 }}>Dashboard</h1>
-          <p style={{ marginTop: 6, color: "#9ca3af", fontSize: 14 }}>
-            Bem-vindo, {user?.fullName}! Aqui está um resumo das suas finanças.
-          </p>
-        </div>
-
-        <button
-          onClick={handleLogout}
-          style={{
-            padding: "8px 18px",
-            background: "#dc2626",
-            color: "#f9fafb",
-            border: "none",
-            borderRadius: 999,
-            cursor: "pointer",
-            fontSize: 13,
-            fontWeight: 500,
-          }}
-        >
-          Logout
-        </button>
+      {/* Header (logout lives in the navbar) */}
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ margin: 0, fontSize: 26 }}>Dashboard</h1>
+        <p style={{ marginTop: 6, color: "#9ca3af", fontSize: 14 }}>
+          Bem-vindo, {user?.fullName}! Aqui está um resumo das suas finanças.
+        </p>
       </div>
 
       {error && (
@@ -159,7 +130,7 @@ const Dashboard: React.FC = () => {
               color: saldo >= 0 ? "#22c55e" : "#ef4444",
             }}
           >
-            R$ {saldo.toFixed(2)}
+            {formatCurrency(saldo)}
           </p>
           <p
             style={{
@@ -203,7 +174,7 @@ const Dashboard: React.FC = () => {
               color: "#22c55e",
             }}
           >
-            R$ {totalIncomes.toFixed(2)}
+            {formatCurrency(totalIncomes)}
           </p>
           <p
             style={{
@@ -246,7 +217,7 @@ const Dashboard: React.FC = () => {
               color: "#ef4444",
             }}
           >
-            R$ {totalExpenses.toFixed(2)}
+            {formatCurrency(totalExpenses)}
           </p>
           <p
             style={{
@@ -401,7 +372,7 @@ const Dashboard: React.FC = () => {
                         fontWeight: 600,
                       }}
                     >
-                      {sinal} R$ {t.amount.toFixed(2)}
+                      {sinal} {formatCurrency(t.amount)}
                     </td>
                   </tr>
                 );

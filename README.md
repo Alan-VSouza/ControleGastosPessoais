@@ -3,8 +3,16 @@
 A full-stack personal finance app to track income and expenses, see your balance in real time and analyze transactions with charts.
 
 ![Status](https://img.shields.io/badge/Status-In_Development-yellow)
-![.NET](https://img.shields.io/badge/.NET-8.0-purple)
+![.NET](https://img.shields.io/badge/.NET-9.0-purple)
 ![React](https://img.shields.io/badge/React-TypeScript-blue)
+
+![Dashboard](docs/screenshots/dashboard.png)
+
+| Analytics | History |
+| :-: | :-: |
+| ![Analytics](docs/screenshots/analytics.png) | ![History](docs/screenshots/history.png) |
+
+*Screenshots use fictional demo data.*
 
 ## 🚀 Features
 
@@ -22,7 +30,7 @@ A full-stack personal finance app to track income and expenses, see your balance
 
 ## 🛠️ Tech stack
 
-**Back-end (API):** C# / .NET 8, Entity Framework Core, SQLite, JWT Bearer authentication and Swagger.
+**Back-end (API):** C# / .NET 9, Entity Framework Core, SQLite, JWT Bearer authentication and Swagger.
 
 **Front-end:** React, TypeScript, Axios, React Router and CSS Modules (scoped styles and dark theme).
 
@@ -30,7 +38,7 @@ A full-stack personal finance app to track income and expenses, see your balance
 
 ## 🔧 Getting started
 
-**Requirements:** [.NET SDK 8.0](https://dotnet.microsoft.com/download), [Node.js](https://nodejs.org/) 18+ and Git.
+**Requirements:** [.NET SDK 9.0](https://dotnet.microsoft.com/download), [Node.js](https://nodejs.org/) 18+ and Git.
 
 **1. Clone the repository**
 
@@ -51,6 +59,15 @@ dotnet run
 
 The API runs at `http://localhost:5148` (or the port configured in your launch settings).
 
+**JWT signing key:** the key is never committed. In `Development` the API generates a random one at startup, so it works out of the box (tokens are invalidated when the API restarts). For any other environment, set a key of at least 32 bytes:
+
+```bash
+dotnet user-secrets set Jwt:Key "<a long random value>"
+# or, in production: Jwt__Key=<a long random value>
+```
+
+Without it the API refuses to start with a clear error.
+
 **3. Run the front-end** (in another terminal)
 
 ```bash
@@ -59,7 +76,7 @@ npm install
 npm start
 ```
 
-The app runs at `http://localhost:3000`. If your API uses a different address, set `REACT_APP_API_URL` in the front-end `.env` file.
+The app runs at `http://localhost:3000`. If your API uses a different address, copy `.env.example` to `.env` and set `REACT_APP_API_URL`.
 
 ---
 

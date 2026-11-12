@@ -1,10 +1,5 @@
 import axios, { AxiosInstance } from "axios";
 
-interface LoginRequest {
-  email: string;
-  password: string;
-}
-
 interface AuthResponse {
   success: boolean;
   message: string;
@@ -121,4 +116,6 @@ class AuthService {
   }
 }
 
-export default new AuthService();
+const authService = new AuthService();
+
+export default authService;

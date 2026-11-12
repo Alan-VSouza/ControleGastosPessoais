@@ -99,7 +99,7 @@ const HomePage: React.FC = () => {
       {/* Footer */}
       <footer className={styles.footer}>
         <p>
-          &copy; 2025 Controle de Gastos Pessoais. Todos os direitos reservados.
+          &copy; {new Date().getFullYear()} Controle de Gastos Pessoais. Todos os direitos reservados.
         </p>
       </footer>
     </div>

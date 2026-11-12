@@ -1,6 +1,7 @@
 import React, { useState, useEffect, ChangeEvent, FormEvent } from "react";
 import axios from "axios";
 import styles from "./TransactionForm.module.css";
+import { formatCurrency } from "../utils/format";
 
 interface TransactionFormProps {
   onTransactionAdded: () => void;
@@ -98,7 +99,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onTransactionAdded })
             isReceita ? styles.positive : styles.negative
           }`}
         >
-          R$ {saldo.toFixed(2)}
+          {formatCurrency(saldo)}
         </div>
       </div>
 

@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using System;
+using System.Collections.Generic;
 using System.Text;
 using ControleGastosPessoais.Api.Data;
 using ControleGastosPessoais.Api.Services;
@@ -23,6 +24,21 @@ namespace ControleGastosPessoais.Api
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
+                .ConfigureAppConfiguration((context, config) =>
+                {
+                    // Development only: a random signing key as the lowest-priority source, so `dotnet run`
+                    // works out of the box. Any Jwt:Key from user-secrets or env vars overrides it.
+                    if (context.HostingEnvironment.IsDevelopment())
+                    {
+                        config.Sources.Insert(0, new Microsoft.Extensions.Configuration.Memory.MemoryConfigurationSource
+                        {
+                            InitialData = new Dictionary<string, string?>
+                            {
+                                ["Jwt:Key"] = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(48)),
+                            },
+                        });
+                    }
+                })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.UseStartup<Startup>();
@@ -47,8 +63,11 @@ namespace ControleGastosPessoais.Api
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlite(Configuration.GetConnectionString("DefaultConnection")));
 
-            // Configure JWT (código omitido para brevidade, assumindo que está correto)
+            // JWT: the signing key is never committed. Set it with user-secrets or the Jwt__Key env var.
             var jwtKey = Configuration["Jwt:Key"];
+            if (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32)
+                throw new InvalidOperationException(
+                    "Jwt:Key is missing or shorter than 32 bytes. Set it with `dotnet user-secrets set Jwt:Key <value>` or the Jwt__Key environment variable.");
             var jwtIssuer = Configuration["Jwt:Issuer"];
             var jwtAudience = Configuration["Jwt:Audience"];
 

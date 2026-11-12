@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { formatCurrency } from "../utils/format";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5148";
 
@@ -93,8 +94,7 @@ const TransactionList: React.FC<Props> = ({ onChanged }) => {
   };
 
   return (
-    <div style={{ marginTop: 24 }}>
-      <h2 style={{ marginBottom: 12 }}>Minhas Transações</h2>
+    <div>
       {loading && <p style={{ color: "#9ca3af" }}>Carregando...</p>}
       {!loading && transactions.length === 0 && (
         <p style={{ color: "#9ca3af" }}>Sem transações ainda.</p>
@@ -196,7 +196,7 @@ const TransactionList: React.FC<Props> = ({ onChanged }) => {
                       fontWeight: 600,
                     }}
                   >
-                    {sinal} R$ {t.amount.toFixed(2)}
+                    {sinal} {formatCurrency(t.amount)}
                   </td>
                   <td style={{ padding: 10, textAlign: "center" }}>
                     <button
