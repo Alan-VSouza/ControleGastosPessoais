@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import styles from "./LoginForm.module.css";
+import styles from "./AuthForm.module.css";
+import { CloseIcon, EyeIcon, WalletIcon } from "./Icons";
 
 const LoginForm: React.FC = () => {
   const navigate = useNavigate();
+  const justRegistered = Boolean((useLocation().state as { registered?: boolean } | null)?.registered);
   const { login, isLoading, error, clearError, isAuthenticated } = useAuth();
 
   const [email, setEmail] = useState("");
@@ -57,12 +59,21 @@ const LoginForm: React.FC = () => {
   return (
     <div className={styles.container}>
       <div className={styles.formWrapper}>
+        <Link to="/" className={styles.brand}>
+          <span className={styles.brandMark}>
+            <WalletIcon size={17} />
+          </span>
+          Controle de Gastos
+        </Link>
         <div className={styles.header}>
-          <h1>Controle de Gastos</h1>
-          <p>Faça login para gerenciar suas finanças</p>
+          <h1>Bem-vindo de volta</h1>
+          <p>Entre para ver seu saldo e suas transações.</p>
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
+          {justRegistered && !error && (
+            <div className="alert alert-success">Conta criada! Agora é só entrar.</div>
+          )}
           <div className={styles.formGroup}>
             <label htmlFor="email">Email</label>
             <input
@@ -104,8 +115,9 @@ const LoginForm: React.FC = () => {
                 className={styles.togglePassword}
                 onClick={() => setShowPassword(!showPassword)}
                 tabIndex={-1}
+                aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
               >
-                {showPassword ? "👁️" : "👁️‍🗨️"}
+                <EyeIcon off={showPassword} />
               </button>
             </div>
             {validationErrors.password && (
@@ -121,7 +133,7 @@ const LoginForm: React.FC = () => {
                 className={styles.closeError}
                 onClick={clearError}
               >
-                ✕
+                <CloseIcon size={16} />
               </button>
             </div>
           )}
@@ -137,7 +149,7 @@ const LoginForm: React.FC = () => {
 
         <div className={styles.footer}>
           <p>
-            Não tem uma conta? <Link to="/register">Registre-se aqui</Link>
+            Não tem uma conta? <Link to="/register">Criar conta</Link>
           </p>
         </div>
       </div>

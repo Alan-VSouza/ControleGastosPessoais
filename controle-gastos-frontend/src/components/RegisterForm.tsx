@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import styles from "./RegisterForm.module.css";
+import styles from "./AuthForm.module.css";
+import { EyeIcon, WalletIcon } from "./Icons";
 
 interface RegisterFormData {
   fullName: string;
@@ -87,8 +88,7 @@ const RegisterForm: React.FC = () => {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        alert("Registro realizado com sucesso! Faça login para continuar.");
-        navigate("/login");
+        navigate("/login", { state: { registered: true } });
       } else {
         setErrors({ server: data.message || "Erro ao registrar" });
       }
@@ -116,9 +116,15 @@ const RegisterForm: React.FC = () => {
   return (
     <div className={styles.container}>
       <div className={styles.formWrapper}>
+        <Link to="/" className={styles.brand}>
+          <span className={styles.brandMark}>
+            <WalletIcon size={17} />
+          </span>
+          Controle de Gastos
+        </Link>
         <div className={styles.header}>
-          <h1>Criar Conta</h1>
-          <p>Registre-se para começar a controlar seus gastos</p>
+          <h1>Crie sua conta</h1>
+          <p>Leva menos de um minuto para começar.</p>
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
@@ -180,8 +186,9 @@ const RegisterForm: React.FC = () => {
                 className={styles.togglePassword}
                 onClick={() => setShowPassword(!showPassword)}
                 tabIndex={-1}
+                aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
               >
-                {showPassword ? "👁️" : "👁️‍🗨️"}
+                <EyeIcon off={showPassword} />
               </button>
             </div>
             {errors.password && (
@@ -228,7 +235,7 @@ const RegisterForm: React.FC = () => {
         {/* Login Link */}
         <div className={styles.footer}>
           <p>
-            Já tem uma conta? <Link to="/login">Faça login aqui</Link>
+            Já tem uma conta? <Link to="/login">Entrar</Link>
           </p>
         </div>
       </div>

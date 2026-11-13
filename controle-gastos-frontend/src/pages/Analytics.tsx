@@ -1,364 +1,206 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
-import { formatCurrency } from "../utils/format";
+import React, { useMemo, useState } from "react";
+import PageLayout from "../components/PageLayout";
+import { BarsChart } from "../components/Charts";
+import TransactionRow from "../components/TransactionRow";
+import { ArrowDownLeftIcon, ArrowUpRightIcon, WalletIcon } from "../components/Icons";
+import { useTransactions } from "../hooks/useTransactions";
+import { formatCurrency, formatShortDate, parseDate, toISODate } from "../utils/format";
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5148";
+type Preset = "month" | "7d" | "30d" | "year" | "custom";
 
-interface Transaction {
-  id: number;
-  description: string;
-  amount: number;
-  type: number; 
-  transactionDate: string;
-}
+const rangeFor = (preset: Exclude<Preset, "custom">): [string, string] => {
+  const today = new Date();
+  const end = toISODate(today);
+  switch (preset) {
+    case "7d":
+      return [toISODate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6)), end];
+    case "30d":
+      return [toISODate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 29)), end];
+    case "year":
+      return [toISODate(new Date(today.getFullYear(), 0, 1)), end];
+    default:
+      return [toISODate(new Date(today.getFullYear(), today.getMonth(), 1)), end];
+  }
+};
+
+const presets: [Exclude<Preset, "custom">, string][] = [
+  ["month", "Este mês"],
+  ["7d", "7 dias"],
+  ["30d", "30 dias"],
+  ["year", "Este ano"],
+];
 
 const AnalyticsPage: React.FC = () => {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [startDate, setStartDate] = useState<string>(
-    new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-      .toISOString()
-      .split("T")[0]
-  );
-  const [endDate, setEndDate] = useState<string>(
-    new Date().toISOString().split("T")[0]
-  );
+  const { transactions, loading } = useTransactions();
+  const [preset, setPreset] = useState<Preset>("month");
+  const [[startDate, endDate], setRange] = useState<[string, string]>(rangeFor("month"));
 
-  const load = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem("auth_token");
-      const res = await axios.get(`${API_BASE_URL}/api/transaction`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setTransactions(res.data);
-    } catch (err) {
-      console.error("Erro ao carregar transações:", err);
-    } finally {
-      setLoading(false);
-    }
+  const choosePreset = (p: Exclude<Preset, "custom">) => {
+    setPreset(p);
+    setRange(rangeFor(p));
   };
 
-  useEffect(() => {
-    load();
-  }, []);
+  const data = useMemo(() => {
+    const inRange = transactions.filter((t) => {
+      const d = t.transactionDate.slice(0, 10);
+      return d >= startDate && d <= endDate;
+    });
+    const income = inRange.filter((t) => t.type === 0).reduce((s, t) => s + t.amount, 0);
+    const expense = inRange.filter((t) => t.type === 1).reduce((s, t) => s + t.amount, 0);
 
-  const filteredTransactions = transactions.filter((t) => {
-    const tDate = new Date(t.transactionDate).toISOString().split("T")[0];
-    return tDate >= startDate && tDate <= endDate;
-  });
+    // One bucket per day, or per month when the range is longer than ~2 months.
+    const start = parseDate(startDate);
+    const end = parseDate(endDate);
+    const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
+    const monthly = days > 62;
+    const buckets = new Map<string, { label: string; income: number; expense: number }>();
+    if (monthly) {
+      for (let d = new Date(start.getFullYear(), start.getMonth(), 1); d <= end; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
+        const key = toISODate(d).slice(0, 7);
+        buckets.set(key, { label: d.toLocaleDateString("pt-BR", { month: "short" }), income: 0, expense: 0 });
+      }
+    } else {
+      for (let i = 0; i < days; i++) {
+        const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+        buckets.set(toISODate(d), { label: formatShortDate(d), income: 0, expense: 0 });
+      }
+    }
+    inRange.forEach((t) => {
+      const key = monthly ? t.transactionDate.slice(0, 7) : t.transactionDate.slice(0, 10);
+      const bucket = buckets.get(key);
+      if (!bucket) return;
+      if (t.type === 0) bucket.income += t.amount;
+      else bucket.expense += t.amount;
+    });
 
-  const totalIncomes = filteredTransactions
-    .filter((t) => t.type === 0)
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const totalExpenses = filteredTransactions
-    .filter((t) => t.type === 1)
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const saldo = totalIncomes - totalExpenses;
-
-  // Calcular altura das barras (máximo 200px)
-  const maxAmount = Math.max(totalIncomes, totalExpenses, 1);
-  const incomeHeight = (totalIncomes / maxAmount) * 200;
-  const expenseHeight = (totalExpenses / maxAmount) * 200;
+    const expenseDays = new Set(inRange.filter((t) => t.type === 1).map((t) => t.transactionDate.slice(0, 10))).size;
+    return {
+      inRange,
+      income,
+      expense,
+      balance: income - expense,
+      bars: Array.from(buckets.values()),
+      dailyAverage: expense / days,
+      expenseDays,
+      days,
+    };
+  }, [transactions, startDate, endDate]);
 
   return (
-    <div
-      style={{
-        padding: "28px 20px",
-        maxWidth: "1100px",
-        margin: "0 auto",
-        color: "#e5e7eb",
-      }}
-    >
-      <h1 style={{ marginBottom: 8 }}>Análise de Período</h1>
-      <p style={{ marginBottom: 20, color: "#9ca3af" }}>
-        Visualize receitas, despesas e saldo em um período específico.
-      </p>
-
-      {/* Filtro de datas */}
-      <div
-        style={{
-          background: "#020617",
-          borderRadius: 16,
-          padding: 18,
-          border: "1px solid rgba(55,65,81,0.9)",
-          marginBottom: 24,
-        }}
-      >
-        <h3 style={{ margin: "0 0 16px 0", fontSize: 14 }}>Selecione o Período</h3>
-        <div
-          style={{
-            display: "flex",
-            gap: 12,
-            flexWrap: "wrap",
-          }}
-        >
-          <div style={{ flex: 1, minWidth: 150 }}>
-            <label
-              style={{
-                display: "block",
-                fontSize: 12,
-                marginBottom: 4,
-                color: "#9ca3af",
-                fontWeight: 500,
-              }}
-            >
-              Data Inicial
-            </label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "8px 10px",
-                background: "#020617",
-                border: "1px solid rgba(55,65,81,0.9)",
-                borderRadius: 8,
-                color: "#e5e7eb",
-                fontSize: 13,
-              }}
-            />
-          </div>
-          <div style={{ flex: 1, minWidth: 150 }}>
-            <label
-              style={{
-                display: "block",
-                fontSize: 12,
-                marginBottom: 4,
-                color: "#9ca3af",
-                fontWeight: 500,
-              }}
-            >
-              Data Final
-            </label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "8px 10px",
-                background: "#020617",
-                border: "1px solid rgba(55,65,81,0.9)",
-                borderRadius: 8,
-                color: "#e5e7eb",
-                fontSize: 13,
-              }}
-            />
+    <PageLayout title="Análise do período" subtitle="Compare entradas e saídas e veja para onde o dinheiro foi.">
+      <div className="stack">
+        <div className="card" style={{ padding: 16 }}>
+          <div className="row" style={{ flexWrap: "wrap", gap: 16 }}>
+            <div className="chips">
+              {presets.map(([key, label]) => (
+                <button key={key} className={`chip ${preset === key ? "active" : ""}`} onClick={() => choosePreset(key)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <span className="spacer" />
+            <div className="row" style={{ gap: 8 }}>
+              <input
+                type="date"
+                className="input"
+                aria-label="Data inicial"
+                value={startDate}
+                max={endDate}
+                onChange={(e) => {
+                  setPreset("custom");
+                  setRange([e.target.value, endDate]);
+                }}
+                style={{ width: 170, padding: "9px 12px" }}
+              />
+              <span className="text-muted">até</span>
+              <input
+                type="date"
+                className="input"
+                aria-label="Data final"
+                value={endDate}
+                min={startDate}
+                onChange={(e) => {
+                  setPreset("custom");
+                  setRange([startDate, e.target.value]);
+                }}
+                style={{ width: 170, padding: "9px 12px" }}
+              />
+            </div>
           </div>
         </div>
+
+        <div className="grid grid-3">
+          <div className="card">
+            <div className="stat-label">
+              <span className="icon-badge income">
+                <ArrowDownLeftIcon />
+              </span>
+              Receitas
+            </div>
+            <div className="stat-value text-income">{formatCurrency(data.income)}</div>
+            <div className="stat-hint">{data.inRange.filter((t) => t.type === 0).length} lançamentos</div>
+          </div>
+          <div className="card">
+            <div className="stat-label">
+              <span className="icon-badge expense">
+                <ArrowUpRightIcon />
+              </span>
+              Despesas
+            </div>
+            <div className="stat-value text-expense">{formatCurrency(data.expense)}</div>
+            <div className="stat-hint">Média de {formatCurrency(data.dailyAverage)} por dia</div>
+          </div>
+          <div className="card">
+            <div className="stat-label">
+              <span className="icon-badge accent">
+                <WalletIcon size={18} />
+              </span>
+              Saldo do período
+            </div>
+            <div className={`stat-value ${data.balance < 0 ? "text-expense" : ""}`}>{formatCurrency(data.balance)}</div>
+            <div className="stat-hint">
+              {data.income > 0 ? `${Math.round((data.expense / data.income) * 100)}% da renda foi gasta` : "Sem receitas no período"}
+            </div>
+          </div>
+        </div>
+
+        <section className="card">
+          <div className="card-header">
+            <div>
+              <h2 className="card-title">Entradas e saídas</h2>
+              <p className="card-subtitle">{data.days > 62 ? "Por mês" : "Por dia"}</p>
+            </div>
+            <div className="legend">
+              <span style={{ color: "var(--income)" }}>
+                <em style={{ color: "var(--muted)", fontStyle: "normal" }}>Receitas</em>
+              </span>
+              <span style={{ color: "var(--expense)" }}>
+                <em style={{ color: "var(--muted)", fontStyle: "normal" }}>Despesas</em>
+              </span>
+            </div>
+          </div>
+          {loading ? <div className="skeleton" style={{ height: 220 }} /> : <BarsChart data={data.bars} />}
+        </section>
+
+        <section className="card">
+          <div className="card-header">
+            <div>
+              <h2 className="card-title">Transações do período</h2>
+              <p className="card-subtitle">{data.inRange.length} no total</p>
+            </div>
+          </div>
+          {data.inRange.length === 0 ? (
+            <div className="empty">Nenhuma transação entre essas datas.</div>
+          ) : (
+            <div className="tx-list">
+              {data.inRange.map((t) => (
+                <TransactionRow key={t.id} transaction={t} />
+              ))}
+            </div>
+          )}
+        </section>
       </div>
-
-      {/* Cards de resumo */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: 16,
-          marginBottom: 24,
-        }}
-      >
-        <div
-          style={{
-            background: "#020617",
-            borderRadius: 16,
-            padding: 16,
-            border: "1px solid rgba(55,65,81,0.9)",
-          }}
-        >
-          <p style={{ margin: "0 0 6px 0", fontSize: 12, color: "#9ca3af" }}>
-            RECEITAS
-          </p>
-          <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#22c55e" }}>
-            {formatCurrency(totalIncomes)}
-          </p>
-        </div>
-
-        <div
-          style={{
-            background: "#020617",
-            borderRadius: 16,
-            padding: 16,
-            border: "1px solid rgba(55,65,81,0.9)",
-          }}
-        >
-          <p style={{ margin: "0 0 6px 0", fontSize: 12, color: "#9ca3af" }}>
-            DESPESAS
-          </p>
-          <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#ef4444" }}>
-            {formatCurrency(totalExpenses)}
-          </p>
-        </div>
-
-        <div
-          style={{
-            background:
-              "radial-gradient(circle at top, #0ea5e9 0%, #020617 55%)",
-            borderRadius: 16,
-            padding: 16,
-            border: "1px solid rgba(148,163,184,0.4)",
-          }}
-        >
-          <p style={{ margin: "0 0 6px 0", fontSize: 12, color: "#9ca3af" }}>
-            SALDO
-          </p>
-          <p
-            style={{
-              margin: 0,
-              fontSize: 20,
-              fontWeight: 700,
-              color: saldo >= 0 ? "#22c55e" : "#ef4444",
-            }}
-          >
-            {formatCurrency(saldo)}
-          </p>
-        </div>
-      </div>
-
-      {/* Gráfico simples */}
-      <div
-        style={{
-          background: "#020617",
-          borderRadius: 16,
-          padding: 24,
-          border: "1px solid rgba(55,65,81,0.9)",
-          marginBottom: 24,
-        }}
-      >
-        <h3 style={{ margin: "0 0 20px 0", fontSize: 14 }}>Visualização</h3>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-end",
-            justifyContent: "center",
-            gap: 32,
-            height: 260,
-          }}
-        >
-          {/* Barra Receitas */}
-          <div
-            style={{
-              textAlign: "center",
-            }}
-          >
-            <div
-              style={{
-                width: 60,
-                height: incomeHeight,
-                background: "linear-gradient(to top, #22c55e, #16a34a)",
-                borderRadius: "8px 8px 0 0",
-                marginBottom: 12,
-              }}
-            />
-            <p style={{ margin: 0, fontSize: 12, color: "#9ca3af" }}>Receitas</p>
-            <p style={{ margin: "4px 0 0 0", fontSize: 14, color: "#22c55e", fontWeight: 600 }}>
-              {formatCurrency(totalIncomes)}
-            </p>
-          </div>
-
-          {/* Barra Despesas */}
-          <div
-            style={{
-              textAlign: "center",
-            }}
-          >
-            <div
-              style={{
-                width: 60,
-                height: expenseHeight,
-                background: "linear-gradient(to top, #ef4444, #dc2626)",
-                borderRadius: "8px 8px 0 0",
-                marginBottom: 12,
-              }}
-            />
-            <p style={{ margin: 0, fontSize: 12, color: "#9ca3af" }}>Despesas</p>
-            <p style={{ margin: "4px 0 0 0", fontSize: 14, color: "#ef4444", fontWeight: 600 }}>
-              {formatCurrency(totalExpenses)}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Transações filtradas */}
-      <div
-        style={{
-          background: "#020617",
-          borderRadius: 16,
-          padding: 20,
-          border: "1px solid rgba(55,65,81,0.9)",
-        }}
-      >
-        <h3 style={{ marginTop: 0, marginBottom: 12, fontSize: 14 }}>
-          Transações do período ({filteredTransactions.length})
-        </h3>
-        {loading && <p style={{ color: "#9ca3af" }}>Carregando...</p>}
-        {!loading && filteredTransactions.length === 0 && (
-          <p style={{ color: "#9ca3af" }}>Nenhuma transação neste período.</p>
-        )}
-        {!loading && filteredTransactions.length > 0 && (
-          <div
-            style={{
-              maxHeight: 300,
-              overflowY: "auto",
-            }}
-          >
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: 12,
-              }}
-            >
-              <thead>
-                <tr>
-                  <th style={{ textAlign: "left", padding: 8, borderBottom: "1px solid rgba(31,41,55,0.9)" }}>
-                    Data
-                  </th>
-                  <th style={{ textAlign: "left", padding: 8, borderBottom: "1px solid rgba(31,41,55,0.9)" }}>
-                    Descrição
-                  </th>
-                  <th style={{ textAlign: "left", padding: 8, borderBottom: "1px solid rgba(31,41,55,0.9)" }}>
-                    Tipo
-                  </th>
-                  <th style={{ textAlign: "right", padding: 8, borderBottom: "1px solid rgba(31,41,55,0.9)" }}>
-                    Valor
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTransactions.map((t) => {
-                  const isIncome = t.type === 0;
-                  return (
-                    <tr key={t.id}>
-                      <td style={{ padding: 8 }}>
-                        {new Date(t.transactionDate).toLocaleDateString()}
-                      </td>
-                      <td style={{ padding: 8 }}>{t.description}</td>
-                      <td style={{ padding: 8 }}>
-                        {isIncome ? "Receita" : "Despesa"}
-                      </td>
-                      <td
-                        style={{
-                          padding: 8,
-                          textAlign: "right",
-                          color: isIncome ? "#22c55e" : "#ef4444",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {isIncome ? "+ " : "- "}{formatCurrency(t.amount)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
+    </PageLayout>
   );
 };
 

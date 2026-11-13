@@ -11,6 +11,8 @@ A full-stack personal finance app to track income and expenses, see your balance
 | Analytics | History |
 | :-: | :-: |
 | ![Analytics](docs/screenshots/analytics.png) | ![History](docs/screenshots/history.png) |
+| **New transaction** | **Landing page** |
+| ![New transaction](docs/screenshots/new-transaction.png) | ![Landing page](docs/screenshots/home.png) |
 
 *Screenshots use fictional demo data.*
 

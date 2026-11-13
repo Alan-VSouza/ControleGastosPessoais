@@ -1,178 +1,189 @@
-import React, { useState, useEffect, ChangeEvent, FormEvent } from "react";
+import React, { FormEvent, useMemo, useState } from "react";
 import axios from "axios";
-import styles from "./TransactionForm.module.css";
-import { formatCurrency } from "../utils/format";
+import { formatCurrency, toISODate } from "../utils/format";
+import { API_BASE_URL, authHeaders, useTransactions } from "../hooks/useTransactions";
+import TransactionRow from "./TransactionRow";
+import { ArrowDownLeftIcon, ArrowUpRightIcon, PlusIcon, WalletIcon } from "./Icons";
 
 interface TransactionFormProps {
   onTransactionAdded: () => void;
 }
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5148";
+type Kind = "Income" | "Expense";
+
+const suggestions: Record<Kind, string[]> = {
+  Income: ["Salário", "Freelance", "Reembolso", "Rendimentos"],
+  Expense: ["Mercado", "Aluguel", "Transporte", "Lazer", "Farmácia"],
+};
 
 const TransactionForm: React.FC<TransactionFormProps> = ({ onTransactionAdded }) => {
-  const [transactionType, setTransactionType] = useState<string>("Income");
-  const [description, setDescription] = useState<string>("");
-  const [amount, setAmount] = useState<string>("");
-  const [transactionDate, setTransactionDate] = useState<string>(
-    new Date().toISOString().slice(0, 10)
+  const { transactions, reload } = useTransactions();
+  const [kind, setKind] = useState<Kind>("Expense");
+  const [description, setDescription] = useState("");
+  const [amount, setAmount] = useState("");
+  const [transactionDate, setTransactionDate] = useState(toISODate(new Date()));
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const balance = useMemo(
+    () => transactions.reduce((sum, t) => sum + (t.type === 0 ? t.amount : -t.amount), 0),
+    [transactions]
   );
-  const [saldo, setSaldo] = useState<number>(0);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string>("");
-  const [success, setSuccess] = useState<string>("");
-
-  useEffect(() => {
-    fetchSaldo();
-  }, []);
-
-  const fetchSaldo = async () => {
-    try {
-      const token = localStorage.getItem("auth_token");
-      const response = await axios.get(`${API_BASE_URL}/api/transaction/saldo`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      setSaldo(response.data);
-    } catch {
-      setSaldo(0);
-    }
-  };
+  const parsedAmount = parseFloat(amount.replace(",", "."));
+  const preview = Number.isFinite(parsedAmount) ? balance + (kind === "Income" ? parsedAmount : -parsedAmount) : balance;
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
     setSuccess("");
 
+    if (!description.trim()) {
+      setError("Informe uma descrição.");
+      return;
+    }
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      setError("Informe um valor maior que zero.");
+      return;
+    }
+
+    setLoading(true);
     try {
-      const payload = {
-        Type: transactionType,
-        Description: description,
-        Amount: parseFloat(amount),
-        TransactionDate: transactionDate,
-      };
-
-      const token = localStorage.getItem("auth_token");
-      await axios.post(`${API_BASE_URL}/api/transaction`, payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      setSuccess("✓ Transação adicionada com sucesso!");
+      await axios.post(
+        `${API_BASE_URL}/api/transaction`,
+        { Type: kind, Description: description.trim(), Amount: parsedAmount, TransactionDate: transactionDate },
+        { headers: authHeaders() }
+      );
+      setSuccess(`${kind === "Income" ? "Receita" : "Despesa"} de ${formatCurrency(parsedAmount)} registrada.`);
       onTransactionAdded();
-
-      await fetchSaldo();
-
+      await reload();
       setDescription("");
       setAmount("");
-      setTransactionType("Income");
-      setTransactionDate(new Date().toISOString().slice(0, 10));
-
-      setTimeout(() => setSuccess(""), 3000);
-    } catch (err: any) {
-      setError("✗ Erro ao adicionar transação. Tente novamente.");
+      setTransactionDate(toISODate(new Date()));
+      setTimeout(() => setSuccess(""), 3500);
+    } catch (err) {
       console.error(err);
+      setError("Não foi possível salvar a transação. Tente novamente.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleTypeChange = (e: ChangeEvent<HTMLSelectElement>) =>
-    setTransactionType(e.target.value);
-  const handleDescriptionChange = (e: ChangeEvent<HTMLInputElement>) =>
-    setDescription(e.target.value);
-  const handleAmountChange = (e: ChangeEvent<HTMLInputElement>) =>
-    setAmount(e.target.value);
-  const handleDateChange = (e: ChangeEvent<HTMLInputElement>) =>
-    setTransactionDate(e.target.value);
-
-  const isReceita = transactionType === "Income";
-
   return (
-    <div className={styles.container}>
-      <div className={styles.saldoCard}>
-        <div className={styles.saldoLabel}>Saldo Atual</div>
-        <div
-          className={`${styles.saldoAmount} ${
-            isReceita ? styles.positive : styles.negative
-          }`}
-        >
-          {formatCurrency(saldo)}
-        </div>
-      </div>
-
-      <form onSubmit={handleSubmit} className={styles.form}>
-        <h2 className={styles.formTitle}>Adicionar Transação</h2>
-
-        {error && <div className={styles.errorMessage}>{error}</div>}
-        {success && <div className={styles.successMessage}>{success}</div>}
-
-        <div className={styles.formGroup}>
-          <label htmlFor="type" className={styles.label}>
-            Tipo de Transação
-          </label>
-          <select
-            id="type"
-            value={transactionType}
-            onChange={handleTypeChange}
-            className={styles.select}
+    <div className="grid grid-main" style={{ alignItems: "start" }}>
+      <form className="card stack" style={{ gap: 20, padding: 26 }} onSubmit={handleSubmit}>
+        <div className="segmented" role="tablist" aria-label="Tipo de transação">
+          <button
+            type="button"
+            className={`${kind === "Expense" ? "active expense" : ""}`}
+            onClick={() => setKind("Expense")}
           >
-            <option value="Income">💰 Receita</option>
-            <option value="Expense">💸 Despesa</option>
-          </select>
+            <ArrowUpRightIcon /> Despesa
+          </button>
+          <button
+            type="button"
+            className={`${kind === "Income" ? "active income" : ""}`}
+            onClick={() => setKind("Income")}
+          >
+            <ArrowDownLeftIcon /> Receita
+          </button>
         </div>
 
-        <div className={styles.formGroup}>
-          <label htmlFor="description" className={styles.label}>
-            Descrição
-          </label>
+        <div className="field">
+          <label htmlFor="amount">Valor</label>
+          <div style={{ position: "relative" }}>
+            <span
+              style={{
+                position: "absolute",
+                left: 16,
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "var(--faint)",
+                fontWeight: 700,
+                fontSize: 20,
+              }}
+            >
+              R$
+            </span>
+            <input
+              id="amount"
+              className="input"
+              inputMode="decimal"
+              placeholder="0,00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value.replace(/[^\d.,]/g, ""))}
+              style={{ fontSize: 28, fontWeight: 800, padding: "14px 16px 14px 58px", letterSpacing: "-0.02em" }}
+            />
+          </div>
+        </div>
+
+        <div className="field">
+          <label htmlFor="description">Descrição</label>
           <input
             id="description"
-            type="text"
+            className="input"
+            placeholder={kind === "Income" ? "Ex.: Salário" : "Ex.: Mercado"}
             value={description}
-            onChange={handleDescriptionChange}
-            placeholder="Ex: Salário, Compras..."
-            className={styles.input}
-            required
+            onChange={(e) => setDescription(e.target.value)}
+            maxLength={80}
           />
+          <div className="chips">
+            {suggestions[kind].map((s) => (
+              <button type="button" key={s} className={`chip ${description === s ? "active" : ""}`} onClick={() => setDescription(s)}>
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className={styles.formGroup}>
-          <label htmlFor="amount" className={styles.label}>
-            Valor (R$)
-          </label>
-          <input
-            id="amount"
-            type="number"
-            step="0.01"
-            value={amount}
-            onChange={handleAmountChange}
-            placeholder="0.00"
-            className={styles.input}
-            required
-          />
+        <div className="field">
+          <label htmlFor="date">Data</label>
+          <input id="date" type="date" className="input" value={transactionDate} onChange={(e) => setTransactionDate(e.target.value)} />
         </div>
 
-        <div className={styles.formGroup}>
-          <label htmlFor="date" className={styles.label}>
-            Data
-          </label>
-          <input
-            id="date"
-            type="date"
-            value={transactionDate}
-            onChange={handleDateChange}
-            className={styles.input}
-            required
-          />
-        </div>
+        {error && <div className="alert alert-error">{error}</div>}
+        {success && <div className="alert alert-success">{success}</div>}
 
-        <button type="submit" className={styles.submitButton} disabled={loading}>
-          {loading ? "Adicionando..." : "➕ Adicionar Transação"}
+        <button type="submit" className="btn btn-primary btn-lg" disabled={loading}>
+          <PlusIcon /> {loading ? "Salvando..." : `Adicionar ${kind === "Income" ? "receita" : "despesa"}`}
         </button>
       </form>
+
+      <div className="stack">
+        <section className="hero-card" style={{ padding: 24 }}>
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <div className="stat-label" style={{ color: "rgba(255,255,255,0.75)" }}>
+              <span className="icon-badge" style={{ background: "rgba(255,255,255,0.12)", color: "#fff" }}>
+                <WalletIcon size={18} />
+              </span>
+              Saldo atual
+            </div>
+            <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-0.03em", marginTop: 12 }}>{formatCurrency(balance)}</div>
+            {Number.isFinite(parsedAmount) && parsedAmount > 0 && (
+              <div style={{ marginTop: 8, color: "rgba(255,255,255,0.7)", fontSize: 14 }}>
+                Depois deste lançamento: <strong style={{ color: "#fff" }}>{formatCurrency(preview)}</strong>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="card">
+          <h2 className="card-title" style={{ marginBottom: 8 }}>
+            Lançados recentemente
+          </h2>
+          {transactions.length === 0 ? (
+            <div className="empty" style={{ padding: 20 }}>
+              Nada por aqui ainda.
+            </div>
+          ) : (
+            <div className="tx-list">
+              {transactions.slice(0, 4).map((t) => (
+                <TransactionRow key={t.id} transaction={t} />
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 };
